@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Interaction Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Drug Interaction Predictor</h1>
+        </header>
+        <main>
+            <section class="form-section">
+                <h2>Enter Drug Pair</h2>
+                <form id="prediction-form">
+                    <label for="drug-a">Drug A:</label>
+                    <input type="text" id="drug-a" name="drug_a" required>
+
+                    <label for="drug-b">Drug B:</label>
+                    <input type="text" id="drug-b" name="drug_b" required>
+
+                    <button type="submit">Predict Interaction</button>
+                </form>
+                <div id="prediction-result" aria-live="polite"></div>
+                <div id="loading-indicator" style="display: none;">Loading...</div>
+            </section>
+            <section class="graph-section">
+                <h2>Drug Interaction Graph</h2>
+                <div id="graph-container">
+                    <img id="interaction-graph" src="" alt="Interaction Graph">
+                </div>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2024 Drug Interaction Predictor</p>
+        </footer>
+    </div>
+    <script>
+        document.getElementById('prediction-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const drugA = document.getElementById('drug-a').value;
+            const drugB = document.getElementById('drug-b').value;
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const predictionResult = document.getElementById('prediction-result');
+            const graphContainer = document.getElementById('graph-container');
+    
+            loadingIndicator.style.display = 'block';
+            predictionResult.innerText = '';
+            graphContainer.innerHTML = '';
+    
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ drug_a: drugA, drug_b: drugB })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                let predictionText = 'Unknown interaction';
+                if (data.prediction_ab) {
+                    predictionText = `Prediction for ${drugA} and ${drugB}: ${data.prediction_ab}`;
+                } else if (data.prediction_ba) {
+                    predictionText = `Prediction for ${drugB} and ${drugA}: ${data.prediction_ba}`;
+                }
+                predictionResult.innerText = predictionText;
+                return fetch('/graph', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ Drug_A: drugA, Drug_B: drugB, Level: data.prediction_ab || data.prediction_ba })
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(graphHtml => {
+                graphContainer.innerHTML = graphHtml;
+            })
+            .catch(error => {
+                predictionResult.innerText = 'Error: ' + error.message;
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                loadingIndicator.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
